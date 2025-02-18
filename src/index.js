@@ -10,6 +10,7 @@ const channel = "**channel name**";
 console.log("Deepar version: " + deepar.version);
 console.log("Agora version: " + AgoraRTC.VERSION);
 
+let cameraIndex = 0;
 // Top-level await is not supported.
 // So we wrap the whole code in an async function that is called immediately.
 (async function () {
@@ -149,8 +150,15 @@ console.log("Agora version: " + AgoraRTC.VERSION);
   // Event Listeners
 
   // Hide the loading screen.
-  document.getElementById("main-container").hidden = false;
-  document.getElementById("loading-screen").style.display = "none";
+  document.getElementById('main-container').hidden = false;
+  document.getElementById('loading-screen').style.display = 'none';
+
+  const switchCameraButton = document.getElementById('switch-camera-button');
+  switchCameraButton.onclick = async function () {
+    switchCameraButton.disabled = true;
+    await switchCamera(deepAR);
+    switchCameraButton.disabled = false;
+  };
 
   let filterIndex = 0;
   const changeFilterButton = document.getElementById("change-filter-button");
@@ -171,3 +179,36 @@ console.log("Agora version: " + AgoraRTC.VERSION);
     }
   });
 })();
+
+async function switchCamera(deepAR) {
+  console.log('switch camera');
+
+  let device = null;
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const videoDevices = devices.filter((d) => d.kind === 'videoinput');
+  cameraIndex = (cameraIndex + 1) % videoDevices.length;
+  device = videoDevices[cameraIndex];
+  if (!device) {
+    device = videoDevices[0];
+    cameraIndex = 0;
+  }
+  console.log('chosen device: ' + device.label);
+  const notMirror = device.label.toLowerCase().includes('back'.toLowerCase());
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      deviceId: {
+        exact: device.deviceId,
+      },
+    },
+  });
+
+  const video = document.createElement('video');
+  video.playsInline = true;
+  video.srcObject = stream;
+
+  video.onloadedmetadata = () => {
+    video.play();
+  };
+
+  deepAR.setVideoElement(video, !notMirror);
+}
